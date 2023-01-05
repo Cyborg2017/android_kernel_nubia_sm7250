@@ -90,7 +90,7 @@ endmenu
     help
       Support for SM7250 Nubia variants
 
- menu "Nubia board selection"
+menu "Nubia board selection"
 
  config MACH_NUBIA_NX651J
     bool "NUBIA_NX651J board"
@@ -104,4 +104,4 @@ endmenu
     help
       Support for Nubia Red Magic 5G Lite variant
 
- endmenu
+endmenu
