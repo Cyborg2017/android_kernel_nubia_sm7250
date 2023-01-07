@@ -31,12 +31,11 @@
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/pid_namespace.h>
-
 int set_task_ioprio(struct task_struct *task, int ioprio)
 {
 	int err;
 	struct io_context *ioc;
-	const struct cred *cred = current_cred(), *tcred;
+    const struct cred *cred = current_cred(), *tcred;
 
 	rcu_read_lock();
 	tcred = __task_cred(task);
@@ -46,7 +45,6 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 		return -EPERM;
 	}
 	rcu_read_unlock();
-
 	err = security_task_setioprio(task, ioprio);
 	if (err)
 		return err;
@@ -60,7 +58,6 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 	return err;
 }
 EXPORT_SYMBOL_GPL(set_task_ioprio);
-
 int ioprio_check_cap(int ioprio)
 {
 	int class = IOPRIO_PRIO_CLASS(ioprio);
@@ -68,10 +65,9 @@ int ioprio_check_cap(int ioprio)
 
 	switch (class) {
 		case IOPRIO_CLASS_RT:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-			/* fall through */
-			/* rt has prio field too */
+            if (!capable(CAP_SYS_ADMIN))
+                return -EPERM;
+            /* fall through, rt has prio field too */
 		case IOPRIO_CLASS_BE:
 			if (data >= IOPRIO_BE_NR || data < 0)
 				return -EINVAL;

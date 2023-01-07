@@ -178,6 +178,11 @@ static void set_dload_mode(int on)
 	if (ret)
 		pr_err("Failed to set secure DLOAD mode: %d\n", ret);
 
+#ifdef CONFIG_NUBIA_PANIC_BOOTMODE
+        if (!on)
+                scm_disable_sdi();
+#endif
+
 	dload_mode_enabled = on;
 }
 
@@ -443,7 +448,13 @@ void msm_set_restart_mode(int mode)
 	restart_mode = mode;
 }
 EXPORT_SYMBOL(msm_set_restart_mode);
-
+#ifdef CONFIG_NUBIA_INPUT_KEYRESET
+void msm_set_dload_mode(int mode)
+{
+	download_mode = mode;
+}
+EXPORT_SYMBOL(msm_set_dload_mode);
+#endif
 /*
  * Force the SPMI PMIC arbiter to shutdown so that no more SPMI transactions
  * are sent from the MSM to the PMIC.  This is required in order to avoid an
@@ -477,9 +488,16 @@ static void msm_restart_prepare(const char *cmd)
 
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode */
+#ifdef CONFIG_NUBIA_PANIC_BOOTMODE
+        printk(KERN_EMERG "nubia: %s:%d: qpnp_pon_check_hard_reset_stored()\n",__func__,__LINE__);
+                if (get_dload_mode() ||
+                        ((cmd != NULL && cmd[0] != '\0') &&
+                        !strcmp(cmd, "edl")) || in_panic)
+#else
 		if (get_dload_mode() ||
 			((cmd != NULL && cmd[0] != '\0') &&
 			!strcmp(cmd, "edl")))
+#endif
 			need_warm_reset = true;
 	} else {
 		need_warm_reset = (get_dload_mode() ||
@@ -534,6 +552,13 @@ static void msm_restart_prepare(const char *cmd)
 			__raw_writel(0x77665501, restart_reason);
 		}
 	}
+#ifdef CONFIG_NUBIA_PANIC_BOOTMODE
+			if (in_panic) {
+					printk(KERN_EMERG "set panic reboot reason=%x,download_mode=%x,need_warm_reset=%x\n",PON_RESTART_REASON_PANIC,download_mode,need_warm_reset);
+					qpnp_pon_set_restart_reason(PON_RESTART_REASON_PANIC);
+			}
+#endif
+
 
 	flush_cache_all();
 

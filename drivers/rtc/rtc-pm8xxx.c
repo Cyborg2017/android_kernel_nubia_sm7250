@@ -22,6 +22,7 @@
 /* RTC_CTRL register bit fields */
 #define PM8xxx_RTC_ENABLE		BIT(7)
 #define PM8xxx_RTC_ALARM_CLEAR		BIT(0)
+#define PM8xxx_RTC_ALARM_ENABLE         BIT(7)
 
 #define NUM_8_BIT_RTC_REGS		0x4
 
@@ -211,7 +212,7 @@ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_time_to_tm(secs, tm);
 
-	dev_dbg(dev, "secs = %lu, h:m:s == %d:%d:%d, d/m/y = %d/%d/%d\n",
+	printk("secs = %lu, h:m:s == %d:%d:%d, d/m/y = %d/%d/%d\n",
 		secs, tm->tm_hour, tm->tm_min, tm->tm_sec,
 		tm->tm_mday, tm->tm_mon, tm->tm_year);
 
@@ -258,10 +259,11 @@ static int pm8xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		goto rtc_rw_fail;
 	}
 
-	dev_dbg(dev, "Alarm Set for h:r:s=%d:%d:%d, d/m/y=%d/%d/%d\n",
+	printk(KERN_ERR "Alarm Set for h:r:s=%d:%d:%d, d/m/y=%d/%d/%d, enabled=%d\n",
 		alarm->time.tm_hour, alarm->time.tm_min,
 		alarm->time.tm_sec, alarm->time.tm_mday,
-		alarm->time.tm_mon, alarm->time.tm_year);
+		alarm->time.tm_mon, alarm->time.tm_year,
+		alarm->enabled);
 rtc_rw_fail:
 	spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
 	return rc;
@@ -292,10 +294,18 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return rc;
 	}
 
-	dev_dbg(dev, "Alarm set for - h:r:s=%d:%d:%d, d/m/y=%d/%d/%d\n",
+	rc = regmap_bulk_read(rtc_dd->regmap, regs->alarm_ctrl, value, 1);
+	 if (rc) {
+		 dev_err(dev, "Read from ALARM CTRL1 failed\n");
+		return rc;
+	}
+	alarm->enabled = !!(value[0] & PM8xxx_RTC_ALARM_ENABLE);
+
+	printk(KERN_ERR "Alarm read for - h:r:s=%d:%d:%d, d/m/y=%d/%d/%d, enabled=%d\n",
 		alarm->time.tm_hour, alarm->time.tm_min,
 		alarm->time.tm_sec, alarm->time.tm_mday,
-		alarm->time.tm_mon, alarm->time.tm_year);
+		alarm->time.tm_mon, alarm->time.tm_year,
+		alarm->enabled);
 
 	return 0;
 }
@@ -308,6 +318,8 @@ static int pm8xxx_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 	unsigned int ctrl_reg;
 	u8 value[NUM_8_BIT_RTC_REGS] = {0};
+
+	printk(KERN_ERR "Alarm set irq enable - %d", enable);
 
 	spin_lock_irqsave(&rtc_dd->ctrl_reg_lock, irq_flags);
 
@@ -328,6 +340,7 @@ static int pm8xxx_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 
 	/* Clear Alarm register */
 	if (!enable) {
+		printk(KERN_ERR "Clear Alarm register\n");
 		rc = regmap_bulk_write(rtc_dd->regmap, regs->alarm_rw, value,
 					sizeof(value));
 		if (rc) {
@@ -472,6 +485,13 @@ static const struct of_device_id pm8xxx_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, pm8xxx_id_table);
 
+//Begin [0016004715 add the kernel power code,20180316]
+#ifdef CONFIG_ZTEMT_POWER_DEBUG
+static time_t rtc_suspend_sec = 0;
+static time_t rtc_resume_sec = 0;
+static unsigned long all_sleep_time = 0;
+static unsigned long all_wake_time = 0;
+#endif
 static int pm8xxx_rtc_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -542,21 +562,60 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int pm8xxx_rtc_resume(struct device *dev)
 {
+        //Begin [0016004715 add the kernel power code,20180316]
+        #ifdef CONFIG_ZTEMT_POWER_DEBUG
+         int rc, diff=0;
+	struct rtc_time tm;
+	unsigned long now;
+        #endif
+       //End  [0016004715 add the kernel power code,20180316]
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(rtc_dd->rtc_alarm_irq);
-
+        //Begin [0016004715 add the kernel power code,20180316]
+        #ifdef CONFIG_ZTEMT_POWER_DEBUG
+	rc = pm8xxx_rtc_read_time(dev,&tm);
+        if (rc) {
+	  printk("%s: Unable to read from RTC\n", __func__);
+	}
+	rtc_tm_to_time(&tm, &now);
+	rtc_resume_sec = now;
+	diff = rtc_resume_sec - rtc_suspend_sec;
+	all_sleep_time += diff;
+	printk("I have sleep %d seconds all_sleep_time %lu seconds\n",diff,all_sleep_time);
+	#endif
+        //End   [0016004715 add the kernel power code,20180316]
 	return 0;
 }
 
 static int pm8xxx_rtc_suspend(struct device *dev)
 {
+	//Begin [0016004715 add the kernel power code,20180316]
+	#ifdef CONFIG_ZTEMT_POWER_DEBUG
+	int rc, diff=0;
+	struct rtc_time tm;
+	unsigned long now;
+	#endif
+	//End [0016004715 add the kernel power code,20180316]
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev))
 		enable_irq_wake(rtc_dd->rtc_alarm_irq);
 
+         //Begin [0016004715 add the kernel power code,20180316]
+         #ifdef CONFIG_ZTEMT_POWER_DEBUG
+	rc = pm8xxx_rtc_read_time(dev,&tm);
+         if(rc) {
+	  printk("%s: Unable to read from RTC\n", __func__);
+	}
+	rtc_tm_to_time(&tm, &now);
+	rtc_suspend_sec = now;
+	diff = rtc_suspend_sec - rtc_resume_sec;
+	all_wake_time += diff;
+	printk("I have work %d seconds all_wake_time %lu seconds\n",diff,all_wake_time);
+	#endif
+	//End   [0016004715 add the kernel power code,20180316]
 	return 0;
 }
 #endif

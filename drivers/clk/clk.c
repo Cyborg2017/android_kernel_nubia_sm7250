@@ -309,7 +309,8 @@ static struct clk_core *__clk_lookup_subtree(const char *name,
 {
 	struct clk_core *child;
 	struct clk_core *ret;
-
+        if(IS_ERR(core))
+		return NULL;
 	if (!strcmp(core->name, name))
 		return core;
 
@@ -3148,7 +3149,13 @@ EXPORT_SYMBOL_GPL(clk_set_flags);
 
 static struct dentry *rootdir;
 static int inited = 0;
+//Begin [0016004715 add the kernel power code,20180316]
+#ifdef CONFIG_ZTEMT_POWER_DEBUG
+static u32 debug_suspend = 1;
+#else
 static u32 debug_suspend;
+#endif
+//End [0016004715 add the kernel power code,20180316]
 static DEFINE_MUTEX(clk_debug_lock);
 static HLIST_HEAD(clk_debug_list);
 

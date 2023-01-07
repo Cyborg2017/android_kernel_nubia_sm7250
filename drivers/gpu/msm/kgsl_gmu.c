@@ -113,10 +113,15 @@ static int gmu_kernel_fault_handler(struct iommu_domain *domain,
 	return _gmu_iommu_fault_handler(dev, addr, flags, "gmu_kernel");
 }
 
+int gmu_smmu_fault;
+
 static int gmu_user_fault_handler(struct iommu_domain *domain,
 		struct device *dev, unsigned long addr, int flags, void *token)
 {
-	return _gmu_iommu_fault_handler(dev, addr, flags, "gmu_user");
+	_gmu_iommu_fault_handler(dev, addr, flags, "gmu_user");
+
+	gmu_smmu_fault = true;
+	return -EBUSY;
 }
 
 static void free_gmu_mem(struct gmu_device *gmu,
@@ -1551,6 +1556,9 @@ static void gmu_snapshot(struct kgsl_device *device)
 			~(gmu_dev_ops->gmu2host_intr_mask));
 
 	gmu->fault_count++;
+
+	if (gmu_smmu_fault)
+	BUG();
 }
 
 static int gmu_init(struct kgsl_device *device)

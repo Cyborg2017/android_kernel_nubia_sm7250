@@ -4193,7 +4193,12 @@ static ssize_t select_pdo_store(struct device *dev,
 		ret = -EINVAL;
 		goto out;
 	}
-
+	
+	if(uv >= 10000000 && ua > 2450000){
+		uv = 9500000;
+		ua = 2450000;
+	}		
+	
 	if (src_cap_id != pd->src_cap_id) {
 		usbpd_err(&pd->dev, "src_cap_id mismatch.  Requested:%d, current:%d\n",
 				src_cap_id, pd->src_cap_id);

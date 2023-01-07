@@ -337,6 +337,10 @@
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
 
+#ifdef CONFIG_NUBIA_DOUBLE_PWRKEY
+#define KEY_LEFTPWR		249 /* Nubia left power flag*/
+#define KEY_RIGHTPWR		250 /* Nubia right power flag*/
+#endif
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
@@ -604,6 +608,10 @@
 #define KEY_SCREENSAVER		0x245	/* AL Screen Saver */
 #define KEY_VOICECOMMAND		0x246	/* Listening Voice Command */
 #define KEY_ASSISTANT		0x247	/* AL Context-aware desktop assistant */
+#ifdef CONFIG_NUBIA_CYPRESS_KEYBOARD_GAMEFIRE
+#define KEY_GAMEFIRE_LEFT      0x248   /* Nubia game fire key left*/
+#define KEY_GAMEFIRE_RIGHT             0x249   /* Nubia game fire key right*/
+#endif
 
 #define KEY_BRIGHTNESS_MIN		0x250	/* Set Brightness to Minimum */
 #define KEY_BRIGHTNESS_MAX		0x251	/* Set Brightness to Maximum */

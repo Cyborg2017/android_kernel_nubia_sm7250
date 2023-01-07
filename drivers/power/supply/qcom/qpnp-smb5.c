@@ -452,9 +452,48 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 		chip->dt.sec_charger_config == POWER_SUPPLY_CHARGER_SEC_PL ||
 		chip->dt.sec_charger_config == POWER_SUPPLY_CHARGER_SEC_CP_PL;
 
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+		chg->step_chg_base_soc = of_property_read_bool(node,
+				"qcom,step-chg-base-soc");
+
+	rc = of_property_read_u32(node,
+			"qcom,step-chg-base-soc-value", &chg->step_chg_base_soc_value);
+
+	rc = of_property_read_u32(node,
+			"qcom,step-chg-base-soc-current", &chg->step_chg_base_soc_current);
+
+	if(chg->step_chg_base_soc)
+		chg->step_chg_enabled =false;
+	else
+		chg->step_chg_enabled = of_property_read_bool(node,
+					"qcom,step-charging-enable");
+	
+	rc = of_property_read_u32(node,
+	     	"qcom,jeita-warm-stop-chg-soc", &chg->jeita_warm_stop_chg_soc);
+	if (rc < 0)
+		chg->jeita_warm_stop_chg_soc = 70;
+
+	pr_err("nubia charge:%d,soc:%d,i:%d; step-chgring-enable=%d,jeita_warm_stop_chg_soc:%d\n", 
+			chg->step_chg_base_soc,
+			chg->step_chg_base_soc_value,
+			chg->step_chg_base_soc_current,
+			chg->step_chg_enabled,
+			chg->jeita_warm_stop_chg_soc);
+	
+	chg->lcd_on_limit_enable= of_property_read_bool(node,
+				"qcom,lcd-on-limit-enable");
+
+	if(chg->lcd_on_limit_enable){
+		rc = of_property_read_u32(node,
+				"qcom,lcd-on-limit-temp", &chg->lcd_on_limit_temp);
+		rc = of_property_read_u32(node,
+				"qcom,lcd-on-limit-fcc", &chg->lcd_on_limit_fcc);
+		chg->lcd_on = 0;
+	}	
+#else
 	chg->step_chg_enabled = of_property_read_bool(node,
 				"qcom,step-charging-enable");
-
+#endif
 	chg->typec_legacy_use_rp_icl = of_property_read_bool(node,
 				"qcom,typec-legacy-rp-icl");
 
@@ -927,6 +966,9 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CONNECTOR_HEALTH:
 		val->intval = smblib_get_prop_connector_health(chg);
+		#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+		val->intval = POWER_SUPPLY_HEALTH_COOL;
+		#endif
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		rc = smblib_get_prop_scope(chg, val);
@@ -1387,8 +1429,10 @@ static int smb5_usb_main_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_FORCE_MAIN_FCC:
 		vote_override(chg->fcc_main_votable, CC_MODE_VOTER,
 				(val->intval < 0) ? false : true, val->intval);
+		//Begin  [0016004715,fix the QC3.0 charge power problem 20191128]
 		if (val->intval >= 0)
 			chg->chg_param.forced_main_fcc = val->intval;
+		//End    [0016004715,fix the QC3.0 charge power problem 20191128]
 		/*
 		 * Remove low vote on FCC_MAIN, for WLS, to allow FCC_MAIN to
 		 * rise to its full value.
@@ -1619,6 +1663,9 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_CAPACITY,
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	POWER_SUPPLY_PROP_LCD_ON,	
+	#endif
 	POWER_SUPPLY_PROP_CHARGER_TEMP,
 	POWER_SUPPLY_PROP_CHARGER_TEMP_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED,
@@ -1792,6 +1839,12 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE:
 		val->intval = chg->fcc_stepper_enable;
 		break;
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	case POWER_SUPPLY_PROP_LCD_ON:
+		//val->intval = chg->lcd_on;		
+		pr_err("====>>get lcd on:%d<<====\n", chg->lcd_on);
+		break;
+	#endif
 	default:
 		pr_err("batt power supply prop %d not supported\n", psp);
 		return -EINVAL;
@@ -1899,6 +1952,16 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE:
 		chg->fcc_stepper_enable = val->intval;
 		break;
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	case POWER_SUPPLY_PROP_LCD_ON:
+		if (val->intval == 0){
+			chg->lcd_on = 0;
+		}else{
+			chg->lcd_on = 1;
+		}
+		pr_err("====>>set lcd on:%d<<====\n", chg->lcd_on);
+		break;
+	#endif
 	default:
 		rc = -EINVAL;
 	}
@@ -1914,6 +1977,9 @@ static int smb5_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 	case POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL:
 	case POWER_SUPPLY_PROP_CAPACITY:
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	case POWER_SUPPLY_PROP_LCD_ON:
+	#endif
 	case POWER_SUPPLY_PROP_PARALLEL_DISABLE:
 	case POWER_SUPPLY_PROP_DP_DM:
 	case POWER_SUPPLY_PROP_RERUN_AICL:
@@ -1930,7 +1996,11 @@ static int smb5_batt_prop_is_writeable(struct power_supply *psy,
 
 static const struct power_supply_desc batt_psy_desc = {
 	.name = "battery",
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	.type = POWER_SUPPLY_TYPE_MAINS,
+	#else
 	.type = POWER_SUPPLY_TYPE_BATTERY,
+	#endif
 	.properties = smb5_batt_props,
 	.num_properties = ARRAY_SIZE(smb5_batt_props),
 	.get_property = smb5_batt_get_prop,
