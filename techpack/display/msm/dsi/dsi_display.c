@@ -213,6 +213,7 @@ void dsi_rect_intersect(const struct dsi_rect *r1,
 	}
 }
 
+bool is_dimlayer_bl_enable;
 int dsi_display_set_backlight(struct drm_connector *connector,
 		void *display, u32 bl_lvl)
 {
@@ -242,8 +243,15 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 	bl_scale_sv = panel->bl_config.bl_scale_sv;
 	bl_temp = (u32)bl_temp * bl_scale_sv / MAX_SV_BL_SCALE_LEVEL;
 
-	DSI_DEBUG("bl_scale = %u, bl_scale_sv = %u, bl_lvl = %u\n",
-		bl_scale, bl_scale_sv, (u32)bl_temp);
+	if (is_dimlayer_bl_enable) {
+		bl_temp = bl_temp > panel->bl_config.bl_dimlayer_dc_level ? bl_temp : panel->bl_config.bl_dimlayer_dc_level;
+	}
+
+	DSI_DEBUG("Art_Chen bl_scale = %u, bl_scale_sv = %u, bl_lvl = %u, is_dimlayer_bl_enable = %d\n",
+		bl_scale, bl_scale_sv, (u32)bl_temp, is_dimlayer_bl_enable);
+
+//	DSI_DEBUG("bl_scale = %u, bl_scale_sv = %u, bl_lvl = %u\n",
+//		bl_scale, bl_scale_sv, (u32)bl_temp);
 	rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
 			DSI_CORE_CLK, DSI_CLK_ON);
 	if (rc) {
@@ -5025,6 +5033,25 @@ error:
 	return rc;
 }
 
+static ssize_t sysfs_dimlayer_bl_read(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "%d\n", is_dimlayer_bl_enable);
+}
+
+static ssize_t sysfs_dimlayer_bl_write(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+    int enabled = 0;
+    sscanf(buf, "%d", &enabled);
+    is_dimlayer_bl_enable = enabled > 0;
+    return count;
+}
+
+static DEVICE_ATTR(dimlayer_bl, 0664,
+			sysfs_dimlayer_bl_read,
+			sysfs_dimlayer_bl_write);
+
 static ssize_t sysfs_fod_ui_read(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -5048,6 +5075,7 @@ static DEVICE_ATTR(fod_ui, 0444,
 
 static struct attribute *display_fs_attrs[] = {
 	&dev_attr_fod_ui.attr,
+	&dev_attr_dimlayer_bl.attr,
 	NULL,
 };
 

@@ -107,6 +107,7 @@ struct dsi_backlight_config {
 	u32 bl_level;
 	u32 bl_scale;
 	u32 bl_scale_sv;
+	u32 bl_dimlayer_dc_level;
 #ifdef CONFIG_NUBIA_DISP_PREFERENCE
 	uint32_t backlight_curve[256];
 	int lhbm_gpio;
@@ -242,6 +243,9 @@ struct dsi_panel {
 
 	struct brightness_alpha_pair *fod_dim_lut;
 	u32 fod_dim_lut_count;
+
+    struct brightness_alpha_pair *bl_dim_lut;
+    u32 bl_dim_lut_count;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -375,6 +379,10 @@ int nubia_dsi_panel_read_reg(struct dsi_panel *panel, uint8_t addr, u8 *reg_val,
 
 int dsi_panel_set_fod_hbm(struct dsi_panel *panel, bool status);
 
+int dsi_panel_set_dimlayer_bl_backlight(struct dsi_panel *panel, bool status);
+
 u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel);
+
+u32 dsi_panel_get_bl_dim_alpha(struct dsi_panel *panel);
 
 #endif /* _DSI_PANEL_H_ */

@@ -63,6 +63,9 @@
 		qcom,mdss-pan-physical-width-dimension = <72>;
 		qcom,mdss-pan-physical-height-dimension = <156>;
 
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
+		qcom,disp-dc-dimlayer-backlight = <260>;
 		qcom,disp-fod-dim-lut = <
 			/* brightness, alpha */
 			17	0xEB
@@ -83,6 +86,33 @@
 			4000	0x24
 			4095	0x21
 		>;
+
+		qcom,disp-bl-dim-lut = <
+      			/* brightness, alpha */
+			0	0xff
+			1	0xE0
+			2	0xd6
+			3	0xd5
+			4	0xcf
+			5	0xcb
+			6	0xc9
+			8	0xc5
+			10	0xc1
+			15	0xb6
+			20	0xac
+			30	0x9d
+			45	0x82
+			70	0x6c
+			100	0x56
+			120	0x47
+			140	0x3a
+			160	0x2f
+			180	0x22
+			200	0x16
+			220	0xe
+			240	0x6
+			260	0x00
+      		>;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
@@ -189,18 +219,6 @@
 					39 01 00 00 00 00 02 b0 00
 					39 01 00 00 00 00 08 d8 00 05 00 17 00 05 69
 					];
-				nubia,mdss-dsi-cabc-command-off = [
-					39 01 00 00 00 00 02 53 08
-					15 01 00 00 00 00 02 55 00];
-				nubia,mdss-dsi-cabc-command-level1 = [
-					39 01 00 00 00 00 02 53 08
-					15 01 00 00 00 00 02 55 01];
-				nubia,mdss-dsi-cabc-command-level2 = [
-					39 01 00 00 00 00 02 53 08
-					15 01 00 00 00 00 02 55 02];
-				nubia,mdss-dsi-cabc-command-level3 = [
-					39 01 00 00 00 00 02 53 08
-					15 01 00 00 00 00 02 55 03];
 				nubia,mdss-dsi-diming-off = [
 					39 01 00 00 00 00 02 b0 00
 					39 01 00 00 00 00 02 53 00];
@@ -210,10 +228,6 @@
 				nubia,mdss-dsi-standard-mode = [
 					39 01 00 00 00 00 02 b0 00
 					39 01 00 00 00 00 26 cd 1d 00 fc fc fc 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 d4 a7 92 e0 b6 a0 3d 00 00 00 00 00 00 00];
-			    nubia,mdss-dsi-cabc-command-off-state = "dsi_hs_mode";
-				nubia,mdss-dsi-cabc-command-level1-state = "dsi_hs_mode";
-				nubia,mdss-dsi-cabc-command-level2-state = "dsi_hs_mode";
-				nubia,mdss-dsi-cabc-command-level3-state = "dsi_hs_mode";
 				nubia,mdss-dsi-diming-off-state = "dsi_hs_mode";
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
@@ -223,11 +237,37 @@
 				nubia,mdss-dsi-bright-mode-state = "dsi_lp_mode";
 				nubia,mdss-dsi-standard-mode-state = "dsi_lp_mode";
 
+				qcom,mdss-dsi-doze-hbm-command = [
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 D4 8B
+					39 00 00 00 00 00 02 B0 A5
+					39 00 00 00 00 00 02 C7 00
+					39 00 00 00 00 00 02 B0 69
+					39 00 00 00 00 00 03 B9 08 8F
+					39 01 00 00 01 00 02 53 E0
+					39 01 00 00 00 00 03 F0 A5 A5];
+				qcom,mdss-dsi-doze-lbm-command = [
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 D4 8B
+					39 00 00 00 00 00 02 B0 A5
+					39 00 00 00 00 00 02 C7 00
+					39 00 00 00 00 00 02 B0 69
+					39 00 00 00 00 00 03 B9 08 8F
+					39 01 00 00 00 00 02 53 23
+					39 01 00 00 00 00 03 F0 A5 A5];
+				qcom,mdss-dsi-nolp-command = [
+					05 01 00 00 10 00 02 28 00
+					39 01 00 00 00 00 02 53 20
+					05 01 00 00 00 00 02 29 00];
+				qcom,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-doze-lbm-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
+
 				/* AOD function */
-				qcom,mdss-dsi-lp1-command = [05 01 00 00 00 00 02 39 00];
+/*				qcom,mdss-dsi-lp1-command = [05 01 00 00 00 00 02 39 00];
 				qcom,mdss-dsi-nolp-command = [05 01 00 00 00 00 02 38 00];
 				qcom,mdss-dsi-lp1-command-state = "dsi_hs_mode";
-				qcom,mdss-dsi-nolp-command-state = "dsi_hs_mode";
+				qcom,mdss-dsi-nolp-command-state = "dsi_hs_mode"; */
 
 				/* HBM function*/
 				nubia,mdss-dsi-hbm-command-on = [39 01 00 00 00 00 02 53 C0];

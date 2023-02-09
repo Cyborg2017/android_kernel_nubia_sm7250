@@ -4324,6 +4324,7 @@ static int _sde_crtc_check_secure_state_smmu_translation(struct drm_crtc *crtc,
 	return 0;
 }
 
+extern bool is_dimlayer_bl_enable;
 static struct sde_hw_dim_layer* sde_crtc_setup_fod_dim_layer(
 		struct sde_crtc_state *cstate,
 		uint32_t stage)
@@ -4362,6 +4363,9 @@ static struct sde_hw_dim_layer* sde_crtc_setup_fod_dim_layer(
 
 	mutex_lock(&display->panel->panel_lock);
 	alpha = dsi_panel_get_fod_dim_alpha(display->panel);
+//	if (is_dimlayer_bl_enable) {
+//		alpha = display->panel : dsi_panel_get_bl_dim_alpha(display->panel);
+//	}
 	mutex_unlock(&display->panel->panel_lock);
 
 	dim_layer = &cstate->dim_layer[cstate->num_dim_layers];
@@ -4382,26 +4386,53 @@ static void sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
 		struct plane_state *pstates, int cnt)
 {
 	uint32_t dim_layer_stage;
+	int fod_layer_index = -1;
 	int plane_idx;
+	int zpos = INT_MAX;
 
-	for (plane_idx = 0; plane_idx < cnt; plane_idx++)
-		if (sde_plane_is_fod_layer(pstates[plane_idx].drm_pstate))
-			break;
+    for (plane_idx = 0; plane_idx < cnt; plane_idx++) {
+		if (sde_plane_is_fod_layer(pstates[plane_idx].drm_pstate)) {
+			fod_layer_index = plane_idx;
+		}
+//		dimlayer_hbm_is_single_layer = cnt == 1 ? 1 : 0;
 
-	if (plane_idx == cnt) {
-		cstate->fod_dim_layer = NULL;
-	} else {
-		dim_layer_stage = pstates[plane_idx].stage;
-		cstate->fod_dim_layer = sde_crtc_setup_fod_dim_layer(cstate,
-				dim_layer_stage);
-	}
+    }
+//      if (fod_layer_index == -1 && cnt > 0) {
+//        if (chen_need_active_hbm_next_frame) {
+//        	fod_layer_index = chen_need_active_hbm_next_frame ? 1 : -1;
+//        }
+//    }
 
-	if (!cstate->fod_dim_layer)
-		return;
+    if (is_dimlayer_bl_enable) {
+        if (fod_layer_index >= 0) {
+            if (zpos > pstates[fod_layer_index].stage)
+                zpos = pstates[fod_layer_index].stage;
+            pstates[fod_layer_index].stage++;
+        }
 
-	for (plane_idx = 0; plane_idx < cnt; plane_idx++)
-		if (pstates[plane_idx].stage >= dim_layer_stage)
-			pstates[plane_idx].stage++;
+        for (plane_idx = 0; plane_idx < cnt; plane_idx++) {
+            if (plane_idx == fod_layer_index)
+                continue;
+            if (pstates[plane_idx].stage >= zpos) {
+                pstates[plane_idx].stage++;
+            }
+        }
+
+        if (zpos == INT_MAX) {
+            zpos = 0;
+            for (plane_idx = 0; plane_idx < cnt; plane_idx++) {
+                if (pstates[plane_idx].stage > zpos)
+                    zpos = pstates[plane_idx].stage;
+            }
+            zpos++;
+        }
+        cstate->fod_dim_layer = sde_crtc_setup_fod_dim_layer(cstate, zpos);
+
+        if (!cstate->fod_dim_layer)
+            return;
+    } else {
+        cstate->fod_dim_layer = NULL;
+    }
 }
 
 static int _sde_crtc_check_secure_conn(struct drm_crtc *crtc,
